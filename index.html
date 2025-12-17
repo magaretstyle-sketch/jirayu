@@ -6,7 +6,7 @@
 
 <style>
   body {
-    background: #222;
+    background: #1e1e1e;
     color: white;
     font-family: Arial;
     text-align: center;
@@ -15,7 +15,20 @@
     background: #87ceeb;
     border: 3px solid white;
     display: block;
-    margin: 20px auto;
+    margin: 10px auto;
+  }
+  .ui {
+    margin-top: 10px;
+  }
+  button {
+    width: 80%;
+    max-width: 400px;
+    padding: 12px;
+    margin: 6px auto;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
   }
 </style>
 </head>
@@ -23,40 +36,44 @@
 <body>
 
 <h1>🌌 Rutherford Realm</h1>
-<p>คะแนน: <span id="score">0</span></p>
+<p>❤️ HP: <span id="hp">3</span> | ⭐ Score: <span id="score">0</span></p>
 
 <canvas id="game" width="800" height="400"></canvas>
 
+<div class="ui" id="choices"></div>
+
 <script>
-/* ================== เสียงคลิก ================== */
+/* ========= เสียงคลิก ========= */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function clickSound() {
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain);
   gain.connect(audioCtx.destination);
-  osc.frequency.value = 600;
+  osc.frequency.value = 500;
   osc.start();
-  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.15);
-  osc.stop(audioCtx.currentTime + 0.15);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+  osc.stop(audioCtx.currentTime + 0.2);
 }
 
-/* ================== Canvas ================== */
+/* ========= Canvas ========= */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-/* ================== เกม ================== */
-let score = 0;
+/* ========= ค่าพื้นฐาน ========= */
 let questIndex = 0;
+let score = 0;
+let hp = 3;
+let transitioning = false;
 
-/* ================== คำถาม ================== */
+/* ========= คำถาม ========= */
 const quests = [
   {
-    q: "นักวิทยาศาสตร์พบว่าอะตอมของทอมสันเป็นอย่างไร?",
+    q: "อะตอมตามแนวคิดของทอมสันมีลักษณะอย่างไร?",
     c: [
-      "มีนิวเคลียสตรงกลาง",
+      "เป็นก้อนตัน",
       "ประจุบวกกระจายและมีอิเล็กตรอนฝังอยู่",
-      "เป็นก้อนตันทั้งหมด"
+      "มีนิวเคลียสตรงกลาง"
     ],
     a: 1
   },
@@ -65,103 +82,149 @@ const quests = [
     c: [
       "สะท้อนกลับ",
       "ทะลุผ่านไป",
-      "หยุดนิ่ง"
+      "หยุดทันที"
     ],
     a: 1
   },
   {
     q: "เหตุใดอนุภาคบางส่วนจึงสะท้อนกลับ?",
     c: [
-      "เพราะมีนิวเคลียสเล็กและหนาแน่น",
+      "เพราะนิวเคลียสเล็กและหนาแน่น",
       "เพราะแรงโน้มถ่วง",
       "เพราะอิเล็กตรอนหนาแน่น"
     ],
     a: 0
   },
   {
-    q: "แบบจำลองอะตอมของรัทเทอร์ฟอร์ดบอกอะไร?",
+    q: "อะตอมตามแบบรัทเทอร์ฟอร์ดเป็นอย่างไร?",
     c: [
-      "อะตอมเป็นก้อนตัน",
-      "อะตอมส่วนใหญ่เป็นที่ว่าง",
-      "อะตอมมีแต่ประจุลบ"
+      "เป็นก้อนตัน",
+      "ส่วนใหญ่เป็นที่ว่าง",
+      "มีแต่ประจุลบ"
     ],
     a: 1
   },
   {
-    q: "การค้นพบนี้เปลี่ยนโลกฟิสิกส์อย่างไร?",
+    q: "การทดลองนี้เปลี่ยนความเข้าใจเรื่องใด?",
     c: [
-      "เข้าใจโครงสร้างอะตอมใหม่",
-      "ค้นพบคลื่นเสียง",
-      "อธิบายแรงโน้มถ่วง"
+      "โครงสร้างอะตอม",
+      "คลื่นเสียง",
+      "แรงโน้มถ่วง"
     ],
     a: 0
   }
 ];
 
-/* ================== วาดฉาก ================== */
-function drawScene() {
+/* ========= วาดฉาก ========= */
+function drawScene(text) {
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // พื้น
-  ctx.fillStyle = "#228B22";
-  ctx.fillRect(0, 330, 800, 70);
+  // ท้องฟ้า
+  ctx.fillStyle = "#87ceeb";
+  ctx.fillRect(0,0,800,400);
 
-  // ตัวละคร
+  // พื้น
+  ctx.fillStyle = "#2e8b57";
+  ctx.fillRect(0,330,800,70);
+
+  // ผู้เล่น
   ctx.fillStyle = "yellow";
-  ctx.fillRect(100, 260, 40, 70);
+  ctx.fillRect(120,260,40,70);
 
   // NPC
   ctx.fillStyle = "purple";
-  ctx.fillRect(600, 260, 40, 70);
+  ctx.fillRect(600,260,40,70);
 
   // กล่องข้อความ
   ctx.fillStyle = "rgba(0,0,0,0.7)";
-  ctx.fillRect(50, 20, 700, 180);
+  ctx.fillRect(50,30,700,140);
 
   ctx.fillStyle = "white";
   ctx.font = "18px Arial";
-  ctx.fillText("รัทเทอร์ฟอร์ด:", 70, 50);
-  ctx.fillText(quests[questIndex].q, 70, 80);
+  ctx.fillText("รัทเทอร์ฟอร์ด:", 70, 60);
+  ctx.fillText(text, 70, 95);
+}
 
-  quests[questIndex].c.forEach((c, i) => {
-    ctx.fillText(`${i+1}. ${c}`, 70, 120 + i * 25);
+/* ========= แสดงคำถาม ========= */
+function showQuest() {
+  drawScene(quests[questIndex].q);
+
+  const choicesDiv = document.getElementById("choices");
+  choicesDiv.innerHTML = "";
+
+  quests[questIndex].c.forEach((choice, index) => {
+    const btn = document.createElement("button");
+    btn.innerText = choice;
+    btn.onclick = () => selectChoice(index);
+    choicesDiv.appendChild(btn);
   });
 }
 
-/* ================== ควบคุมเกม ================== */
-document.addEventListener("keydown", e => {
-  const key = parseInt(e.key) - 1;
-  if (key >= 0 && key <= 2) {
-    clickSound();
+/* ========= เลือกคำตอบ ========= */
+function selectChoice(choice) {
+  if (transitioning) return;
+  clickSound();
 
-    if (key === quests[questIndex].a) {
-      score += 10;
-      questIndex++;
-      document.getElementById("score").innerText = score;
+  if (choice === quests[questIndex].a) {
+    score += 10;
+    questIndex++;
+    updateUI();
 
-      if (questIndex >= quests.length) {
-        endGame();
-      } else {
-        drawScene();
-      }
+    if (questIndex >= quests.length) {
+      endGame(true);
+    } else {
+      transition("ผ่านด่าน! เดินหน้าต่อ...");
+    }
+  } else {
+    hp--;
+    updateUI();
+    transition("พลังชีวิตลด! ระวังให้ดี...");
+
+    if (hp <= 0) {
+      endGame(false);
     }
   }
-});
+}
 
-/* ================== จบเกม ================== */
-function endGame() {
+/* ========= เปลี่ยนฉาก ========= */
+function transition(text) {
+  transitioning = true;
+  drawScene(text);
+  document.getElementById("choices").innerHTML = "";
+
+  setTimeout(() => {
+    transitioning = false;
+    showQuest();
+  }, 1200);
+}
+
+/* ========= อัปเดต UI ========= */
+function updateUI() {
+  document.getElementById("score").innerText = score;
+  document.getElementById("hp").innerText = hp;
+}
+
+/* ========= จบเกม ========= */
+function endGame(win) {
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  document.getElementById("choices").innerHTML = "";
+
   ctx.fillStyle = "black";
   ctx.font = "28px Arial";
-  ctx.fillText("🎉 ภารกิจสำเร็จ!", 280, 180);
+
+  if (win) {
+    ctx.fillText("🎉 ภารกิจสำเร็จ!", 280, 180);
+  } else {
+    ctx.fillText("💀 พลังชีวิตหมด", 280, 180);
+  }
+
+  ctx.font = "22px Arial";
   ctx.fillText("คะแนนรวม: " + score, 300, 230);
 }
 
-/* ================== เริ่มเกม ================== */
-drawScene();
+/* ========= เริ่มเกม ========= */
+showQuest();
 </script>
-
-<p>⌨️ กดปุ่ม 1 / 2 / 3 เพื่อเลือกคำตอบ</p>
 
 </body>
 </html>
